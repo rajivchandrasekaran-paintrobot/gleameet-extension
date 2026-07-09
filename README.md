@@ -8,4 +8,4 @@ Chrome extension for real-time behavioral coaching during meetings.
 2. Unzip the file
 3. Go to `chrome://extensions`
 4. Enable **Developer mode** (top right toggle)
-5. Click **Load unpacked** → select the unzipped folder
+5. Click **Load unpacked** → select the `public` folder inside the unzipped download
