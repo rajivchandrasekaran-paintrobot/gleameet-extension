@@ -2,10 +2,10 @@
 
 Chrome extension for private real-time behavioral coaching during Zoom web, Google Meet, and Microsoft Teams web meetings.
 
-Latest public build: **v1.0.82**
+Latest public build: **v1.0.81**
 
 - Latest download: [gleameet-extension.zip](https://github.com/rajivchandrasekaran-paintrobot/gleameet-extension/raw/main/gleameet-extension.zip)
-- Versioned download: [gleameet-extension-1.0.82.zip](https://github.com/rajivchandrasekaran-paintrobot/gleameet-extension/raw/main/gleameet-extension-1.0.82.zip)
+- Versioned download: [gleameet-extension-1.0.81.zip](https://github.com/rajivchandrasekaran-paintrobot/gleameet-extension/raw/main/gleameet-extension-1.0.81.zip)
 
 ## Installation
 
@@ -53,12 +53,6 @@ The capture mode is selected in the popup before starting coaching.
 Desktop Zoom and desktop Teams are not the primary target for this extension build. Use the browser/web meeting versions.
 
 ## Recent Changes
-
-### v1.0.82
-
-- Added recovery for recorders that stay technically alive but only emit tiny/empty audio chunks.
-- Added a no-audio-chunk timeout if `dataavailable` callbacks stop arriving while the recorder claims it is still active.
-- This targets cases where live nudges still appear but the transcript stops advancing after a few minutes.
 
 ### v1.0.81
 
