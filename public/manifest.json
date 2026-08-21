@@ -1,0 +1,71 @@
+{
+    "manifest_version": 3,
+    "name": "Evolvio - AI Meeting Coach",
+    "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAu6SVQewW0ezqK3pwY7qoGBBeSodMN9+IX8NXFUj2z89CVG0OhA9pDuq/Hrjh3o3vBs9Mzlc19+Ot8Eu6Cf2Y2OJ2ANifu29ezsutx84FX6UxAX9g9AcblhHntXtJPUaEAYxEQ27lz171tdezPGV8DThnNoDnuV+woecl/4eGSbLoZ56ytWeXYA9iXjNN0fjZp7JPFOo1ugZYjX5hKpSJBwsUC7LqN4ZEcWI0ozzNfNsdoXB1UUY3BCsf8XYlc2/OcK21jkK/IrDTxphDEjo9FwDTjC8xsJA9g/BsV38cd9TOJ21616hUI8y97AFzODXKgAl5H1iA098UXnNf24yDLwIDAQAB",
+    "version": "1.0.100",
+    "description": "Private real-time AI meeting coach for Google Meet, Teams, and Zoom",
+    "permissions": [
+        "activeTab",
+        "audioCapture",
+        "tabCapture",
+        "storage",
+        "alarms",
+        "identity",
+        "offscreen",
+        "scripting",
+        "tabs"
+    ],
+    "oauth2": {
+        "client_id": "783981911702-fnhs6kad6qjk4j2vpkve0g75b7f4ibjt.apps.googleusercontent.com",
+        "scopes": [
+            "openid",
+            "email",
+            "profile"
+        ]
+    },
+    "host_permissions": [
+        "https://meet.google.com/*",
+        "https://teams.microsoft.com/*",
+        "https://teams.live.com/*",
+        "https://zoom.us/*",
+        "https://app.zoom.us/*"
+    ],
+    "background": {
+        "service_worker": "background.js",
+        "type": "module"
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "https://meet.google.com/*",
+                "https://teams.microsoft.com/*",
+                "https://teams.live.com/*",
+                "https://zoom.us/wc/*",
+                "https://app.zoom.us/wc/*",
+                "https://teams.microsoft.com/dl/*",
+                "https://teams.microsoft.com/l/*"
+            ],
+            "js": [
+                "content.js"
+            ],
+            "css": [
+                "content.css"
+            ],
+            "run_at": "document_idle"
+        }
+    ],
+    "action": {
+        "default_popup": "popup.html",
+        "default_icon": {
+            "16": "icons/icon-16.png",
+            "48": "icons/icon-48.png",
+            "128": "icons/icon-128.png"
+        }
+    },
+    "icons": {
+        "16": "icons/icon-16.png",
+        "48": "icons/icon-48.png",
+        "128": "icons/icon-128.png"
+    },
+    "options_page": "options.html"
+}

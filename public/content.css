@@ -1,0 +1,135 @@
+/* Evolvio prompt overlay — visible only to the coached user (FR-055, FR-063) */
+#gleameet-overlay {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 2147483647;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  pointer-events: none;
+}
+
+#gleameet-overlay * {
+  pointer-events: auto;
+}
+
+/* Prompt card (FR-055 through FR-063) */
+.gleameet-prompt {
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 102, 204, 0.2);
+  border-radius: 12px;
+  padding: 14px 18px;
+  max-width: 320px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+  animation: gleameet-slide-in 0.3s ease-out;
+  margin-top: 8px;
+}
+
+.gleameet-prompt-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.gleameet-prompt-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #0066cc;
+}
+
+.gleameet-prompt-law-code {
+  font-size: 10px;
+  font-weight: 700;
+  font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+  color: #ffffff;
+  background: #0066cc;
+  border-radius: 4px;
+  padding: 1px 6px;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+}
+
+.gleameet-prompt-dismiss {
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: #8b8ba0;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+}
+.gleameet-prompt-dismiss:hover {
+  color: #1a1a2e;
+}
+
+/* Main prompt text — must be readable in 1-3 seconds (FR-057) */
+.gleameet-prompt-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a2e;
+  line-height: 1.35;
+  margin-bottom: 4px;
+}
+
+/* Optional rationale (FR-059) */
+.gleameet-prompt-rationale {
+  font-size: 12px;
+  color: #6b6b80;
+  line-height: 1.3;
+}
+
+/* Privacy indicator (FR-063) */
+.gleameet-privacy-indicator {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 2147483646;
+  font-size: 10px;
+  color: #8b8ba0;
+  background: rgba(255, 255, 255, 0.7);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* Status indicator */
+.gleameet-status {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-size: 11px;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.gleameet-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.gleameet-status.active .gleameet-status-dot { background: #00804a; }
+.gleameet-status.muted .gleameet-status-dot { background: #cc7a00; }
+.gleameet-status.ready .gleameet-status-dot { background: #0066cc; }
+.gleameet-status.error .gleameet-status-dot { background: #cc0000; }
+
+@keyframes gleameet-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
