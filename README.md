@@ -1,23 +1,24 @@
-# GleaMeet Extension
+# Evolvio Extension
 
 Chrome extension for private real-time behavioral coaching during Zoom web, Google Meet, and Microsoft Teams web meetings.
 
-Latest public build: **v1.0.86**
+Latest public build: **v1.0.89**
 
-- Latest download: [gleameet-extension.zip](https://github.com/rajivchandrasekaran-paintrobot/gleameet-extension/raw/main/gleameet-extension.zip)
-- Versioned download: [gleameet-extension-1.0.86.zip](https://github.com/rajivchandrasekaran-paintrobot/gleameet-extension/raw/main/gleameet-extension-1.0.86.zip)
+- Latest download: [evolvio-extension.zip](https://github.com/rajivchandrasekaran-paintrobot/gleameet-extension/raw/main/evolvio-extension.zip)
+- Legacy stable download: [gleameet-extension.zip](https://github.com/rajivchandrasekaran-paintrobot/gleameet-extension/raw/main/gleameet-extension.zip)
+- Versioned download: [evolvio-extension-1.0.89.zip](https://github.com/rajivchandrasekaran-paintrobot/gleameet-extension/raw/main/evolvio-extension-1.0.89.zip)
 
 ## Installation
 
-1. Download [gleameet-extension.zip](https://github.com/rajivchandrasekaran-paintrobot/gleameet-extension/raw/main/gleameet-extension.zip)
+1. Download [evolvio-extension.zip](https://github.com/rajivchandrasekaran-paintrobot/gleameet-extension/raw/main/evolvio-extension.zip)
 2. Unzip the file
 3. Open Chrome and go to `chrome://extensions`
 4. Enable **Developer mode** using the top-right toggle
 5. Click **Load unpacked**
 6. Select the `public` folder inside the unzipped download
-7. Pin the GleaMeet extension from Chrome's puzzle-piece extensions menu
+7. Pin the Evolvio extension from Chrome's puzzle-piece extensions menu
 
-If you are updating an existing install, remove or reload the old GleaMeet extension in `chrome://extensions`, then load the new `public` folder.
+If you are updating an existing install, remove or reload the old Evolvio extension in `chrome://extensions`, then load the new `public` folder.
 
 ## How To Use
 
@@ -25,17 +26,17 @@ If you are updating an existing install, remove or reload the old GleaMeet exten
    - Zoom web: `zoom.us/wc/...` or `app.zoom.us/wc/...`
    - Google Meet: `meet.google.com/...`
    - Microsoft Teams web: `teams.microsoft.com/...`
-2. Click the GleaMeet extension icon.
+2. Click the Evolvio extension icon.
 3. Sign in with Google when prompted.
-4. Optional: turn on **Use only my voice** before starting coaching if you do not want GleaMeet to use other participants' audio or captions.
+4. Optional: turn on **Use only my voice** before starting coaching if you do not want Evolvio to use other participants' audio or captions.
 5. Click **Start Coaching**.
 6. Coaching prompts appear privately on your meeting page. Other participants cannot see them.
 7. Use **Stop Coaching** to pause coaching while keeping the meeting open.
-8. Use **End Meeting** when you want GleaMeet to generate the post-meeting report.
+8. Use **End Meeting** when you want Evolvio to generate the post-meeting report.
 
 ## Privacy Modes
 
-GleaMeet supports two capture modes:
+Evolvio supports two capture modes:
 
 - **Full meeting**: uses your microphone plus available meeting audio/captions so prompts can consider the broader conversation.
 - **Use only my voice**: uses only your own microphone input for coaching prompts. Other participants are not recorded or used for prompt generation in this mode.
@@ -54,10 +55,11 @@ Desktop Zoom and desktop Teams are not the primary target for this extension bui
 
 ## Recent Changes
 
-### v1.0.86
+### v1.0.89
 
-- Makes live coaching prompts feel more direct and personal instead of third-person or metric-like.
-- Translates prompt/readout signals into plain English, such as possible jump-in moments and measured airtime.
+- Renames the extension package and public-facing release artifacts to Evolvio.
+- Keeps the existing Chrome extension key so already-installed extension identity remains stable.
+- Keeps `gleameet-extension.zip` as a compatibility alias for older download links.
 - Renames report sections to friendlier coaching language: **Worth Trying Next**, **Next Moves**, and **Transcript + Coach**.
 
 ### v1.0.85
