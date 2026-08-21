@@ -23639,12 +23639,24 @@
     "../shared/dist/constants.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
-      exports.LATENCY_TARGETS = exports.DEFAULT_RETENTION_DAYS = exports.RANKING_WEIGHTS = exports.PROMPT_LIMITS = exports.ROLLING_WINDOWS = exports.MAX_PROMPTS_PER_30_MIN = exports.EVOLVIO_INFERENCE_SCHEMA_VERSION = exports.EVOLVIO_PROMPT_TEMPLATE_VERSION = exports.EVOLVIO_PATTERN_THRESHOLD_VERSION = exports.EVOLVIO_RULE_REGISTRY_VERSION = exports.DEFAULT_CAPTURE_MODE = void 0;
+      exports.LATENCY_TARGETS = exports.DEFAULT_RETENTION_DAYS = exports.RANKING_WEIGHTS = exports.PROMPT_LIMITS = exports.ROLLING_WINDOWS = exports.MAX_PROMPTS_PER_30_MIN = exports.EVOLVIO_STRUCTURED_RETENTION_DAYS = exports.EVOLVIO_PATTERN_THRESHOLDS = exports.EVOLVIO_INFERENCE_SCHEMA_VERSION = exports.EVOLVIO_PROMPT_TEMPLATE_VERSION = exports.EVOLVIO_PATTERN_THRESHOLD_VERSION = exports.EVOLVIO_RULE_REGISTRY_VERSION = exports.DEFAULT_CAPTURE_MODE = void 0;
       exports.DEFAULT_CAPTURE_MODE = "user_voice_only";
       exports.EVOLVIO_RULE_REGISTRY_VERSION = "law-registry.v1";
       exports.EVOLVIO_PATTERN_THRESHOLD_VERSION = "pattern-thresholds.test.v1";
       exports.EVOLVIO_PROMPT_TEMPLATE_VERSION = "prompt-templates.v3";
       exports.EVOLVIO_INFERENCE_SCHEMA_VERSION = "evolvio.incremental.v1";
+      exports.EVOLVIO_PATTERN_THRESHOLDS = {
+        MIN_SUPPORTING_OBSERVATIONS_FOR_CANDIDATE: 1,
+        MIN_SUPPORTING_MEETINGS_FOR_EMERGING: 2,
+        MIN_SUPPORTING_MEETINGS_FOR_ACTIVE: 3,
+        MAX_CORRECTIONS_BEFORE_CONTESTED: 1
+      };
+      exports.EVOLVIO_STRUCTURED_RETENTION_DAYS = {
+        EVIDENCE_AND_OBSERVATIONS: 365,
+        PATTERNS: 730,
+        DEVELOPMENT_PLAN: 365,
+        CORRECTIONS: 730
+      };
       exports.MAX_PROMPTS_PER_30_MIN = {
         "minimal": 15,
         // Keep standard coaching alive through long meetings; the 15s global cooldown
@@ -23698,6 +23710,156 @@
     }
   });
 
+  // ../shared/dist/evolvio-behavior-registry.js
+  var require_evolvio_behavior_registry = __commonJS({
+    "../shared/dist/evolvio-behavior-registry.js"(exports) {
+      "use strict";
+      Object.defineProperty(exports, "__esModule", { value: true });
+      exports.EVOLVIO_BEHAVIOR_CODES = exports.EVOLVIO_MEETING_LENSES = exports.EVOLVIO_BEHAVIOR_REGISTRY = exports.EVOLVIO_BEHAVIOR_REGISTRY_VERSION = void 0;
+      exports.isMeetingLens = isMeetingLens;
+      exports.isBehaviorCode = isBehaviorCode;
+      exports.behaviorCodeFitsLens = behaviorCodeFitsLens;
+      exports.getEvolvioBehavior = getEvolvioBehavior;
+      exports.EVOLVIO_BEHAVIOR_REGISTRY_VERSION = "evolvio-behavior-registry.v1";
+      exports.EVOLVIO_BEHAVIOR_REGISTRY = {
+        acknowledge_before_advocating: {
+          behavior_code: "acknowledge_before_advocating",
+          lens: "collaboration",
+          label: "Acknowledge before advocating",
+          description: "Reflect another point before adding a recommendation, disagreement, or competing frame.",
+          supported_capture_modes: ["user_voice_only", "full_meeting"],
+          evidence_quality_minimum: "user_transcript_or_timing",
+          permitted_inferences: ["The contribution may be easier to receive when the other point is named first."],
+          prohibited_inferences: ["people-pleasing", "dominance", "empathy score", "personality label", "intent"],
+          disconfirming_features: ["acknowledgment_count", "summary_or_recap_count"],
+          safe_prompt_template: "Name their point first, then land yours.",
+          practice_cue: "When you are about to disagree or redirect",
+          practice_behavior: "name the prior point in one sentence before adding yours",
+          measure_metric: "At least one acknowledgment before advocacy in the next meeting"
+        },
+        ask_clarifying_question: {
+          behavior_code: "ask_clarifying_question",
+          lens: "clarity",
+          label: "Ask a clarifying question",
+          description: "Use a concise question to clarify scope, assumptions, decision criteria, or next steps.",
+          supported_capture_modes: ["user_voice_only", "full_meeting"],
+          evidence_quality_minimum: "direct_user_signal",
+          permitted_inferences: ["A question may improve shared understanding before a recommendation."],
+          prohibited_inferences: ["curiosity trait", "intelligence", "engagement score", "motivation"],
+          disconfirming_features: ["question_count", "clarifying_question_count"],
+          safe_prompt_template: "Ask one clean clarifying question.",
+          practice_cue: "When the plan or recommendation feels underspecified",
+          practice_behavior: "ask one question about scope, owner, or decision criteria",
+          measure_metric: "One clarifying question before the recommendation"
+        },
+        make_next_step_specific: {
+          behavior_code: "make_next_step_specific",
+          lens: "commitment",
+          label: "Make the next step specific",
+          description: "Close an idea with a clear owner, action, and timing cue.",
+          supported_capture_modes: ["user_voice_only", "full_meeting"],
+          evidence_quality_minimum: "user_transcript_or_timing",
+          permitted_inferences: ["Specific owner/date language may make follow-through easier to track."],
+          prohibited_inferences: ["leadership potential", "performance rating", "executive readiness", "reliability trait"],
+          disconfirming_features: ["owner_assignment_present", "deadline_present", "action_specificity_score"],
+          safe_prompt_template: "Ask who owns the next step and by when.",
+          practice_cue: "When a topic is about to close",
+          practice_behavior: "name the owner and date for one next step",
+          measure_metric: "One owner/date close in the next meeting"
+        },
+        balance_risk_and_upside: {
+          behavior_code: "balance_risk_and_upside",
+          lens: "clarity",
+          label: "Balance risk and upside",
+          description: "Pair downside framing with an observable upside, option, or tradeoff.",
+          supported_capture_modes: ["user_voice_only", "full_meeting"],
+          evidence_quality_minimum: "direct_user_signal",
+          permitted_inferences: ["A balanced frame may help others compare tradeoffs."],
+          prohibited_inferences: ["risk preference", "anxiety", "pessimism", "bias label"],
+          disconfirming_features: ["gain_frame_score", "option_count_presented"],
+          safe_prompt_template: "Name one upside or tradeoff too.",
+          practice_cue: "When you describe a risk",
+          practice_behavior: "add one upside, option, or tradeoff in the same breath",
+          measure_metric: "Risk statements paired with one upside or option"
+        },
+        ground_claim_with_example: {
+          behavior_code: "ground_claim_with_example",
+          lens: "clarity",
+          label: "Ground a claim with an example",
+          description: "Support a recommendation with one concrete example, data point, or prior case.",
+          supported_capture_modes: ["user_voice_only", "full_meeting"],
+          evidence_quality_minimum: "direct_user_signal",
+          permitted_inferences: ["A concrete example may make the recommendation easier to evaluate."],
+          prohibited_inferences: ["expertise rating", "credibility score", "competence conclusion"],
+          disconfirming_features: ["evidence_reference_present", "peer_example_present"],
+          safe_prompt_template: "Bring in one concrete example.",
+          practice_cue: "When you make a recommendation",
+          practice_behavior: "attach one concrete example or data point",
+          measure_metric: "One example attached to the main recommendation"
+        },
+        manage_response_timing: {
+          behavior_code: "manage_response_timing",
+          lens: "composure",
+          label: "Manage response timing",
+          description: "Create a short beat before responding when the moment is fast or tense.",
+          supported_capture_modes: ["full_meeting"],
+          evidence_quality_minimum: "user_transcript_or_timing",
+          permitted_inferences: ["A short pause may create room for a more considered reply."],
+          prohibited_inferences: ["impulsivity", "System 1 score", "emotional control", "temperament"],
+          disconfirming_features: ["response_latency_seconds", "clarifying_question_count"],
+          safe_prompt_template: "Leave one beat before responding.",
+          practice_cue: "When you feel ready to answer immediately",
+          practice_behavior: "pause for one beat before speaking",
+          measure_metric: "One deliberate pause before a response"
+        },
+        summarize_shared_understanding: {
+          behavior_code: "summarize_shared_understanding",
+          lens: "collaboration",
+          label: "Summarize shared understanding",
+          description: "Briefly recap what has been decided, heard, or agreed before moving forward.",
+          supported_capture_modes: ["user_voice_only", "full_meeting"],
+          evidence_quality_minimum: "direct_user_signal",
+          permitted_inferences: ["A recap may make alignment easier to inspect."],
+          prohibited_inferences: ["team psychological safety", "facilitation score", "leadership potential"],
+          disconfirming_features: ["summary_or_recap_count"],
+          safe_prompt_template: "Recap the shared point in one sentence.",
+          practice_cue: "When the discussion shifts topics",
+          practice_behavior: "recap the shared point in one sentence",
+          measure_metric: "One concise recap before topic shift"
+        },
+        invite_other_perspective: {
+          behavior_code: "invite_other_perspective",
+          lens: "collaboration",
+          label: "Invite another perspective",
+          description: "Create a small opening for another view without requiring disclosure or agreement.",
+          supported_capture_modes: ["user_voice_only", "full_meeting"],
+          evidence_quality_minimum: "user_transcript_or_timing",
+          permitted_inferences: ["A small invitation may make it easier for others to contribute."],
+          prohibited_inferences: ["dominance", "manipulation", "team engagement", "peer reaction"],
+          disconfirming_features: ["question_count", "turn_count"],
+          safe_prompt_template: "Invite one other perspective.",
+          practice_cue: "When you have spoken for a while",
+          practice_behavior: "ask for one other view before continuing",
+          measure_metric: "One explicit invitation for another perspective"
+        }
+      };
+      exports.EVOLVIO_MEETING_LENSES = ["clarity", "collaboration", "commitment", "composure"];
+      exports.EVOLVIO_BEHAVIOR_CODES = Object.keys(exports.EVOLVIO_BEHAVIOR_REGISTRY);
+      function isMeetingLens(value) {
+        return exports.EVOLVIO_MEETING_LENSES.includes(value);
+      }
+      function isBehaviorCode(value) {
+        return exports.EVOLVIO_BEHAVIOR_CODES.includes(value);
+      }
+      function behaviorCodeFitsLens(behaviorCode, lens) {
+        return !lens || exports.EVOLVIO_BEHAVIOR_REGISTRY[behaviorCode].lens === lens;
+      }
+      function getEvolvioBehavior(behaviorCode) {
+        return exports.EVOLVIO_BEHAVIOR_REGISTRY[behaviorCode];
+      }
+    }
+  });
+
   // ../shared/dist/index.js
   var require_dist = __commonJS({
     "../shared/dist/index.js"(exports) {
@@ -23723,6 +23885,7 @@
       __exportStar(require_events(), exports);
       __exportStar(require_constants(), exports);
       __exportStar(require_api_types(), exports);
+      __exportStar(require_evolvio_behavior_registry(), exports);
     }
   });
 
@@ -24715,6 +24878,27 @@
   async function getAppConfig() {
     return apiRequest("GET", "/config", void 0, false);
   }
+  async function getEvolvioGoals() {
+    return apiRequest("GET", "/evolvio/goals");
+  }
+  async function createEvolvioGoal(request) {
+    return apiRequest("POST", "/evolvio/goals", request);
+  }
+  async function updateEvolvioGoal(goalId, request) {
+    return apiRequest("PATCH", `/evolvio/goals/${goalId}`, request);
+  }
+  async function getEvolvioStructuredMeeting(meetingSessionId) {
+    return apiRequest("GET", `/evolvio/meetings/${meetingSessionId}/structured`);
+  }
+  async function createEvolvioCorrection(request) {
+    return apiRequest("POST", "/evolvio/corrections", request);
+  }
+  async function updateEvolvioPractice(practiceId, request) {
+    return apiRequest("PATCH", `/evolvio/practices/${practiceId}`, request);
+  }
+  async function updateEvolvioMeasure(measureId, request) {
+    return apiRequest("PATCH", `/evolvio/measures/${measureId}`, request);
+  }
   async function deleteMeeting(meetingSessionId) {
     return apiRequest("DELETE", `/meetings/${meetingSessionId}`);
   }
@@ -24921,6 +25105,11 @@
     const [deletingId, setDeletingId] = (0, import_react.useState)(null);
     const [captureMode, setCaptureMode] = (0, import_react.useState)(import_shared.DEFAULT_CAPTURE_MODE);
     const [allowFullMeetingCapture, setAllowFullMeetingCapture] = (0, import_react.useState)(false);
+    const [goals, setGoals] = (0, import_react.useState)([]);
+    const [activeGoal, setActiveGoal] = (0, import_react.useState)(null);
+    const [goalText, setGoalText] = (0, import_react.useState)("");
+    const [structuredMeeting, setStructuredMeeting] = (0, import_react.useState)(null);
+    const [correctionDrafts, setCorrectionDrafts] = (0, import_react.useState)({});
     (0, import_react.useEffect)(() => {
       let statusPoll = null;
       const refreshStatus = () => {
@@ -25009,6 +25198,14 @@
         if (statusPoll) clearInterval(statusPoll);
       };
     }, []);
+    (0, import_react.useEffect)(() => {
+      if (!state.authenticated) return;
+      getEvolvioGoals().then((data) => {
+        setGoals(data.goals);
+        setActiveGoal(data.active_goal);
+      }).catch(() => {
+      });
+    }, [state.authenticated]);
     const handleSignIn = () => {
       chrome.identity.getAuthToken({ interactive: false }, (cachedToken) => {
         const doAuth = () => {
@@ -25051,6 +25248,37 @@
       const resolvedMode = allowFullMeetingCapture ? mode : import_shared.DEFAULT_CAPTURE_MODE;
       setCaptureMode(resolvedMode);
       chrome.storage.sync.set({ captureMode: resolvedMode });
+    };
+    const handleCreateGoal = async () => {
+      const text = goalText.trim();
+      if (!text) return;
+      setLoading(true);
+      setError(null);
+      try {
+        await ensureToken();
+        const data = await createEvolvioGoal({ goal_text: text });
+        setGoals((prev) => [data.goal, ...prev.filter((goal) => goal.goal_id !== data.goal.goal_id)]);
+        setActiveGoal(data.active_goal);
+        setGoalText("");
+      } catch (e) {
+        setError(e.message || "Failed to save goal");
+      } finally {
+        setLoading(false);
+      }
+    };
+    const handleCompleteGoal = async (goalId) => {
+      setLoading(true);
+      setError(null);
+      try {
+        await ensureToken();
+        const data = await updateEvolvioGoal(goalId, { status: "completed" });
+        setGoals((prev) => prev.map((goal) => goal.goal_id === data.goal.goal_id ? data.goal : goal));
+        setActiveGoal(data.active_goal);
+      } catch (e) {
+        setError(e.message || "Failed to update goal");
+      } finally {
+        setLoading(false);
+      }
     };
     const handleStartCoaching = () => {
       const resolvedCaptureMode = allowFullMeetingCapture ? captureMode : import_shared.DEFAULT_CAPTURE_MODE;
@@ -25164,6 +25392,8 @@
         await ensureToken();
         const data = await getReport(meetingSessionId);
         setReport(data);
+        setStructuredMeeting(null);
+        getEvolvioStructuredMeeting(meetingSessionId).then(setStructuredMeeting).catch(() => setStructuredMeeting(null));
         setReportTab("summary");
         setView("report");
       } catch (e) {
@@ -25182,6 +25412,62 @@
       } catch (e) {
         setError(e.message || "Failed to delete meeting");
         setDeletingId(null);
+      }
+    };
+    const handleContestObservation = async (observation) => {
+      const text = correctionDrafts[observation.observation_id]?.trim() || null;
+      setError(null);
+      try {
+        await ensureToken();
+        const result = await createEvolvioCorrection({
+          target_type: "observation",
+          target_id: observation.observation_id,
+          category: "missing_context",
+          correction_text: text
+        });
+        setStructuredMeeting((prev) => prev ? {
+          ...prev,
+          observations: prev.observations.map(
+            (item) => item.observation_id === observation.observation_id ? { ...item, status: "contested" } : item
+          ),
+          corrections: [result.correction, ...prev.corrections]
+        } : prev);
+        setCorrectionDrafts((prev) => ({ ...prev, [observation.observation_id]: "" }));
+      } catch (e) {
+        setError(e.message || "Failed to submit correction");
+      }
+    };
+    const handlePracticeStatus = async (practice, status) => {
+      setError(null);
+      try {
+        await ensureToken();
+        const result = await updateEvolvioPractice(practice.practice_id, { status });
+        setStructuredMeeting((prev) => prev ? {
+          ...prev,
+          practices: prev.practices.map(
+            (item) => item.practice_id === practice.practice_id ? result.practice : item
+          )
+        } : prev);
+      } catch (e) {
+        setError(e.message || "Failed to update practice");
+      }
+    };
+    const handleMeasureObserved = async (measure) => {
+      setError(null);
+      try {
+        await ensureToken();
+        const result = await updateEvolvioMeasure(measure.measure_id, {
+          status: "observed",
+          subsequent_result: "Marked observed in extension"
+        });
+        setStructuredMeeting((prev) => prev ? {
+          ...prev,
+          measures: prev.measures.map(
+            (item) => item.measure_id === measure.measure_id ? result.measure : item
+          )
+        } : prev);
+      } catch (e) {
+        setError(e.message || "Failed to update measure");
       }
     };
     const handleDownloadReport = () => {
@@ -25277,6 +25563,14 @@
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
             "button",
             {
+              className: `report-tab ${reportTab === "evolvio" ? "report-tab-active" : ""}`,
+              onClick: () => setReportTab("evolvio"),
+              children: "Evolvio"
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "button",
+            {
               className: `report-tab ${reportTab === "transcript-nudges" ? "report-tab-active" : ""}`,
               onClick: () => setReportTab("transcript-nudges"),
               children: "Transcript + Coach"
@@ -25302,6 +25596,84 @@
                 ra.reason
               ] })
             ] }, i)) })
+          ] })
+        ] }),
+        reportTab === "evolvio" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "report-section", children: [
+          !structuredMeeting && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "empty-message", children: "No structured Evolvio records available yet." }),
+          structuredMeeting && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "report-block", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { className: "report-block-title", children: "Next Unlock" }),
+              structuredMeeting.next_unlocks.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "evolvio-muted", children: "No next unlock saved for this meeting." }),
+              structuredMeeting.next_unlocks.slice(0, 2).map((unlock) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "evolvio-panel", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: unlock.prioritized_behavioral_target }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: unlock.rationale })
+              ] }, unlock.next_unlock_id))
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "report-block", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { className: "report-block-title", children: "Practice" }),
+              structuredMeeting.practices.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "evolvio-muted", children: "No practice saved for this meeting." }),
+              structuredMeeting.practices.slice(0, 3).map((practice) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "evolvio-panel", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: practice.cue }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: practice.behavior }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "evolvio-row", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: `evolvio-pill status-${practice.status}`, children: practice.status }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "btn btn-secondary btn-sm", onClick: () => handlePracticeStatus(practice, "accepted"), children: "Accept" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "btn btn-secondary btn-sm", onClick: () => handlePracticeStatus(practice, "completed"), children: "Done" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "btn btn-secondary btn-sm", onClick: () => handlePracticeStatus(practice, "dismissed"), children: "Dismiss" })
+                ] })
+              ] }, practice.practice_id))
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "report-block", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { className: "report-block-title", children: "Measure" }),
+              structuredMeeting.measures.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "evolvio-muted", children: "No measure saved for this meeting." }),
+              structuredMeeting.measures.slice(0, 3).map((measure) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "evolvio-panel", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: measure.observable_metric }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: measure.baseline_window }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "evolvio-row", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: `evolvio-pill status-${measure.status}`, children: measure.status }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "btn btn-secondary btn-sm", onClick: () => handleMeasureObserved(measure), children: "Observed" })
+                ] })
+              ] }, measure.measure_id))
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "report-block", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { className: "report-block-title", children: "Evidence" }),
+              structuredMeeting.observations.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "evolvio-muted", children: "No observations saved for this meeting." }),
+              structuredMeeting.observations.slice(0, 4).map((observation) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "evolvio-panel", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "evolvio-row", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: observation.behavior_code.replace(/_/g, " ") }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: `evolvio-pill status-${observation.status}`, children: observation.status })
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: observation.contextual_behavior }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                  "textarea",
+                  {
+                    className: "evolvio-input",
+                    rows: 2,
+                    placeholder: "Add context or correction",
+                    value: correctionDrafts[observation.observation_id] || "",
+                    onChange: (e) => setCorrectionDrafts((prev) => ({
+                      ...prev,
+                      [observation.observation_id]: e.target.value
+                    }))
+                  }
+                ),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "btn btn-secondary btn-sm", onClick: () => handleContestObservation(observation), children: "Contest" })
+              ] }, observation.observation_id))
+            ] }),
+            structuredMeeting.patterns.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "report-block", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { className: "report-block-title", children: "Patterns" }),
+              structuredMeeting.patterns.slice(0, 3).map((pattern) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "evolvio-panel", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "evolvio-row", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: pattern.behavior_code.replace(/_/g, " ") }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: `evolvio-pill status-${pattern.state}`, children: pattern.state })
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", { children: [
+                  pattern.support_observation_ids.length,
+                  " observation(s), first seen ",
+                  formatDate(pattern.first_seen_at)
+                ] })
+              ] }, pattern.pattern_id))
+            ] })
           ] })
         ] }),
         reportTab === "transcript-nudges" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "report-transcript-list", children: [
@@ -25459,6 +25831,32 @@
         ] })
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "controls", children: [
+        state.authenticated && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "goal-panel", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "goal-header", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Goal" }),
+            activeGoal && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "btn btn-secondary btn-sm", onClick: () => handleCompleteGoal(activeGoal.goal_id), children: "Complete" })
+          ] }),
+          activeGoal ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: activeGoal.goal_text }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "goal-entry", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+              "input",
+              {
+                type: "text",
+                value: goalText,
+                placeholder: "Set one focus for the next meeting",
+                onChange: (e) => setGoalText(e.target.value),
+                onKeyDown: (e) => {
+                  if (e.key === "Enter") void handleCreateGoal();
+                }
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "btn btn-secondary btn-sm", onClick: handleCreateGoal, disabled: loading || !goalText.trim(), children: "Save" })
+          ] }),
+          goals.length > 0 && !activeGoal && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", { className: "evolvio-muted", children: [
+            goals.length,
+            " saved goal",
+            goals.length === 1 ? "" : "s"
+          ] })
+        ] }),
         allowFullMeetingCapture && state.status !== "active" && state.status !== "muted" && !state.meetingSessionId && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "capture-mode", children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { className: "capture-mode-option", children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
