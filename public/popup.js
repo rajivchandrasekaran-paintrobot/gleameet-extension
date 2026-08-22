@@ -25112,7 +25112,7 @@
     const [correctionDrafts, setCorrectionDrafts] = (0, import_react.useState)({});
     (0, import_react.useEffect)(() => {
       let statusPoll = null;
-      const refreshStatus = () => {
+      const refreshStatus2 = () => {
         chrome.runtime.sendMessage({ type: "GET_STATUS" }, (response) => {
           if (!response) return;
           const isAuthenticated = response.authenticated || false;
@@ -25179,8 +25179,8 @@
         setCaptureMode(import_shared.DEFAULT_CAPTURE_MODE);
         chrome.storage.sync.set({ captureMode: import_shared.DEFAULT_CAPTURE_MODE });
       });
-      refreshStatus();
-      statusPoll = setInterval(refreshStatus, 2e3);
+      refreshStatus2();
+      statusPoll = setInterval(refreshStatus2, 2e3);
       const listener = (message) => {
         if (message.type === "STATUS_UPDATE") {
           setState((prev) => reconcilePopupState(prev, {
@@ -25305,13 +25305,22 @@
       chrome.runtime.sendMessage({ type: "STOP_COACHING" });
     };
     const handleEndMeeting = () => {
-      setState((prev) => ({
-        ...prev,
-        status: prev.meetingDetected ? "ready" : "off",
-        meetingDetected: prev.meetingDetected,
-        meetingSessionId: null
-      }));
-      chrome.runtime.sendMessage({ type: "END_MEETING" });
+      setLoading(true);
+      setError(null);
+      chrome.runtime.sendMessage({ type: "END_MEETING" }, (response) => {
+        setLoading(false);
+        if (chrome.runtime.lastError || response?.error) {
+          setError(chrome.runtime.lastError?.message || response?.error || "Failed to end meeting");
+          refreshStatus();
+          return;
+        }
+        setState((prev) => reconcilePopupState(prev, {
+          status: response?.status || (prev.meetingDetected ? "ready" : "off"),
+          meetingDetected: prev.meetingDetected,
+          meetingSessionId: null,
+          statusReason: "coaching-ended-by-user"
+        }));
+      });
     };
     const handleMute = () => {
       chrome.runtime.sendMessage({ type: "MUTE_COACHING" });

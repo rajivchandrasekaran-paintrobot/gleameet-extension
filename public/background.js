@@ -450,30 +450,16 @@ async function handleStopCoaching() {
     cancelTrackedMeetingTabCleanup();
     const meetingContext = await getPreferredMeetingContext();
     if (state.meetingSessionId) {
-      await flushEventBuffer();
-      const result = await endMeeting(state.meetingSessionId);
-      if (state.batchInterval) clearInterval(state.batchInterval);
-      if (state.pollingInterval) clearInterval(state.pollingInterval);
-      chrome.runtime.sendMessage({ type: "STOP_MIC_CAPTURE" }).catch(() => {
+      const endedSessionId = state.meetingSessionId;
+      const bufferedEvents = [...state.eventBuffer];
+      stopLocalCoachingSession({
+        reason: "coaching-ended-by-user",
+        meetingDetected: meetingContext?.meetingDetected ?? state.meetingDetected,
+        platform: meetingContext?.platform ?? state.platform,
+        meetingTabId: meetingContext?.tabId ?? state.meetingTabId
       });
-      chrome.runtime.sendMessage({ type: "STOP_TAB_CAPTURE" }).catch(() => {
-      });
-      await sendMessageToMeetingTabs({ type: "DISMISS_ALL_PROMPTS" });
-      state.meetingSessionId = null;
-      state.meetingDetected = meetingContext?.meetingDetected ?? state.meetingDetected;
-      state.platform = meetingContext?.platform ?? state.platform;
-      state.meetingTabId = meetingContext?.tabId ?? state.meetingTabId;
-      state.status = state.meetingDetected ? "ready" : "off";
-      state.eventBuffer = [];
-      state.captureMode = DEFAULT_CAPTURE_MODE;
-      state.promptsMutedByUser = false;
-      state.coachingPausedByUser = false;
-      state.batchInterval = null;
-      state.pollingInterval = null;
-      if (!state.meetingDetected) {
-        state.meetingTabId = null;
-        state.platform = null;
-      }
+      await flushEventsForSession(endedSessionId, bufferedEvents);
+      const result = await endMeeting(endedSessionId);
       broadcastStatus("coaching-ended-by-user");
       return { status: state.status, reportId: result.report_id };
     }
@@ -486,11 +472,16 @@ async function handleStopCoaching() {
       state.meetingTabId = null;
       state.platform = null;
     }
+    chrome.storage.local.remove("activeCoachingSession");
     broadcastStatus("coaching-ended-by-user");
     return { status: state.status };
   } catch (err) {
-    state.status = "error";
-    broadcastStatus();
+    console.error("[Evolvio] End meeting failed:", err);
+    if (state.meetingSessionId) {
+      stopLocalCoachingSession({ reason: "coaching-end-failed-local-stop" });
+    } else {
+      broadcastStatus("coaching-end-failed");
+    }
     return { error: err.message };
   }
 }
@@ -567,6 +558,17 @@ async function flushEventBuffer() {
   } catch (err) {
     state.eventBuffer.unshift(...events);
     console.error("[Evolvio] Event batch failed:", err);
+  }
+}
+async function flushEventsForSession(meetingSessionId, events) {
+  if (events.length === 0) return;
+  try {
+    await sendEventBatch({
+      meeting_session_id: meetingSessionId,
+      events
+    });
+  } catch (err) {
+    console.error("[Evolvio] Final event flush failed:", err);
   }
 }
 async function pollForPrompts() {
@@ -674,6 +676,44 @@ function broadcastStatus(statusReason) {
     statusReason
   }).catch(() => {
   });
+}
+function stopLocalCoachingSession(options) {
+  const endedSessionId = state.meetingSessionId;
+  if (state.batchInterval) {
+    clearInterval(state.batchInterval);
+    state.batchInterval = null;
+  }
+  if (state.pollingInterval) {
+    clearInterval(state.pollingInterval);
+    state.pollingInterval = null;
+  }
+  void sendMessageToMeetingTabs({
+    type: "COACHING_ENDED",
+    meetingSessionId: endedSessionId,
+    reason: options.reason
+  }).catch(() => {
+  });
+  void sendMessageToMeetingTabs({ type: "DISMISS_ALL_PROMPTS" }).catch(() => {
+  });
+  chrome.runtime.sendMessage({ type: "STOP_MIC_CAPTURE" }).catch(() => {
+  });
+  chrome.runtime.sendMessage({ type: "STOP_TAB_CAPTURE" }).catch(() => {
+  });
+  state.meetingSessionId = null;
+  state.meetingDetected = options.meetingDetected ?? state.meetingDetected;
+  state.platform = options.platform ?? state.platform;
+  state.meetingTabId = options.meetingTabId ?? state.meetingTabId;
+  state.status = state.meetingDetected ? "ready" : "off";
+  state.eventBuffer = [];
+  state.captureMode = DEFAULT_CAPTURE_MODE;
+  state.promptsMutedByUser = false;
+  state.coachingPausedByUser = false;
+  if (!state.meetingDetected) {
+    state.meetingTabId = null;
+    state.platform = null;
+  }
+  chrome.storage.local.remove("activeCoachingSession");
+  broadcastStatus(options.reason);
 }
 function persistActiveCoachingSession() {
   if (!state.meetingSessionId) {

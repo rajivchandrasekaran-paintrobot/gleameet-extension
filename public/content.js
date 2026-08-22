@@ -1146,6 +1146,17 @@
           stopSignalCapture();
         }
         break;
+      case "COACHING_ENDED":
+        if (!message.meetingSessionId || message.meetingSessionId === state.meetingSessionId) {
+          state.status = state.meetingDetected ? "ready" : "off";
+          state.meetingSessionId = null;
+          state.userId = null;
+          state.promptsMutedByUser = false;
+          updateStatusIndicator();
+          stopSignalCapture();
+          dismissCurrentPrompt();
+        }
+        break;
       case "WHISPER_ACTIVE":
         markWhisperActive();
         break;
