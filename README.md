@@ -2,11 +2,11 @@
 
 Chrome extension for private real-time behavioral coaching during Zoom web, Google Meet, and Microsoft Teams web meetings.
 
-Latest public build: **v1.0.89**
+Latest public build: **v1.0.105**
 
 - Latest download: [evolvio-extension.zip](https://github.com/rajivchandrasekaran-paintrobot/gleameet-extension/raw/main/evolvio-extension.zip)
 - Legacy stable download: [gleameet-extension.zip](https://github.com/rajivchandrasekaran-paintrobot/gleameet-extension/raw/main/gleameet-extension.zip)
-- Versioned download: [evolvio-extension-1.0.89.zip](https://github.com/rajivchandrasekaran-paintrobot/gleameet-extension/raw/main/evolvio-extension-1.0.89.zip)
+- Versioned download: [evolvio-extension-1.0.105.zip](https://github.com/rajivchandrasekaran-paintrobot/gleameet-extension/raw/main/evolvio-extension-1.0.105.zip)
 
 ## Installation
 
@@ -54,6 +54,12 @@ The capture mode is selected in the popup before starting coaching.
 Desktop Zoom and desktop Teams are not the primary target for this extension build. Use the browser/web meeting versions.
 
 ## Recent Changes
+
+### v1.0.105
+
+- Restores the launch-time audio-source choice.
+- Keeps **Only my audio** as the default.
+- Adds **Everyone's audio too** for explicit full-meeting capture using microphone plus meeting-tab audio.
 
 ### v1.0.89
 
