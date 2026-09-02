@@ -23,6 +23,16 @@ body {
   font-weight: 600;
   color: #1a1a2e;
 }
+.popup-logo {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+.popup-logo-main {
+  width: 34px;
+  height: 34px;
+}
 .icon-btn {
   width: 28px;
   height: 28px;
@@ -91,6 +101,14 @@ body {
   border: 1px solid #e8e8ec;
   border-radius: 6px;
   background: #fafafc;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.capture-mode-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1a1a2e;
 }
 .capture-mode-option {
   display: flex;
@@ -118,6 +136,12 @@ body {
   font-size: 11px;
   line-height: 1.35;
   color: #6b6b80;
+}
+.capture-mode-note {
+  margin: 0 0 0 26px;
+  font-size: 11px;
+  color: #8a5a00;
+  line-height: 1.4;
 }
 .goal-panel {
   padding: 10px;

@@ -144,6 +144,7 @@ var state = {
 var meetingTabCleanupTimer = null;
 var meetingCleanupInProgress = null;
 var lastAudioCaptureRestartAt = 0;
+var FINAL_AUDIO_FLUSH_TIMEOUT_MS = 7e3;
 function resolveCaptureMode(value, fallback = DEFAULT_CAPTURE_MODE) {
   return value === "full_meeting" || value === "user_voice_only" ? value : fallback;
 }
@@ -451,6 +452,9 @@ async function handleStopCoaching() {
     const meetingContext = await getPreferredMeetingContext();
     if (state.meetingSessionId) {
       const endedSessionId = state.meetingSessionId;
+      await flushActiveAudioCapture(endedSessionId);
+      await flushEventBuffer().catch(() => {
+      });
       const bufferedEvents = [...state.eventBuffer];
       stopLocalCoachingSession({
         reason: "coaching-ended-by-user",
@@ -647,6 +651,24 @@ function handleStartAudioCapture(meetingSessionId, captureMode = state.captureMo
     });
   });
 }
+async function flushActiveAudioCapture(meetingSessionId) {
+  if (!meetingSessionId || state.status !== "active") return;
+  const contentFlush = sendMessageToMeetingTabs({
+    type: "FLUSH_SIGNAL_CAPTURE",
+    meetingSessionId
+  }).catch(() => {
+  });
+  const offscreenFlush = chrome.runtime.sendMessage({
+    type: "FLUSH_AUDIO_CAPTURE",
+    meetingSessionId
+  }).catch(() => {
+  });
+  await Promise.race([
+    Promise.allSettled([contentFlush, offscreenFlush]).then(() => void 0),
+    new Promise((resolve) => setTimeout(resolve, FINAL_AUDIO_FLUSH_TIMEOUT_MS))
+  ]);
+  await new Promise((resolve) => setTimeout(resolve, 750));
+}
 function handleAudioCaptureStopped(message) {
   if (!message.meetingSessionId || message.meetingSessionId !== state.meetingSessionId || state.status !== "active" || state.coachingPausedByUser || state.promptsMutedByUser) {
     return { ok: true, ignored: true };
@@ -827,6 +849,7 @@ async function cleanupActiveMeetingSession(reason) {
   meetingCleanupInProgress = (async () => {
     const sessionId = state.meetingSessionId;
     if (sessionId) {
+      await flushActiveAudioCapture(sessionId);
       await flushEventBuffer().catch(() => {
       });
       await endMeeting(sessionId).catch((err) => {

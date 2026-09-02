@@ -9,7 +9,8 @@
   var tabAudioCtx = null;
   var tabSessionId = null;
   var expectedRecorderStops = /* @__PURE__ */ new WeakSet();
-  chrome.runtime.onMessage.addListener(async (message) => {
+  var flushResolvers = /* @__PURE__ */ new Map();
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.type === "START_MIC_CAPTURE") {
       const { meetingSessionId, sessionToken, apiBase } = message;
       if (micRecorder && micSessionId === meetingSessionId && isRecorderHealthy(micRecorder)) {
@@ -85,7 +86,42 @@
       stopTabCapture();
       console.log("[Evolvio Offscreen] Tab capture stopped");
     }
+    if (message.type === "FLUSH_AUDIO_CAPTURE") {
+      Promise.all([
+        flushRecorder(micRecorder, 6e3),
+        flushRecorder(tabRecorder, 6e3)
+      ]).then(() => sendResponse({ ok: true })).catch((err) => sendResponse({ ok: false, error: err?.message || String(err) }));
+      return true;
+    }
   });
+  function settleFlushes(recorder) {
+    const resolvers = flushResolvers.get(recorder) || [];
+    flushResolvers.delete(recorder);
+    resolvers.forEach((resolve) => resolve());
+  }
+  function flushRecorder(recorder, timeoutMs) {
+    if (!recorder || recorder.state !== "recording") return Promise.resolve();
+    return new Promise((resolve) => {
+      let timer;
+      const done = () => {
+        clearTimeout(timer);
+        const resolvers2 = flushResolvers.get(recorder) || [];
+        const index = resolvers2.indexOf(done);
+        if (index >= 0) resolvers2.splice(index, 1);
+        if (resolvers2.length === 0) flushResolvers.delete(recorder);
+        resolve();
+      };
+      timer = setTimeout(done, timeoutMs);
+      const resolvers = flushResolvers.get(recorder) || [];
+      resolvers.push(done);
+      flushResolvers.set(recorder, resolvers);
+      try {
+        recorder.requestData();
+      } catch (_) {
+        done();
+      }
+    });
+  }
   function isRecorderHealthy(recorder) {
     return recorder.state === "recording" && recorder.stream.active && recorder.stream.getAudioTracks().some((track) => track.readyState === "live");
   }
@@ -179,59 +215,63 @@
       });
     });
     recorder.ondataavailable = async (e) => {
-      lastDataAvailableAt = Date.now();
-      if (!e.data || e.data.size < 1e3) {
-        consecutiveTinyChunks++;
-        chunksSinceText++;
-        if (consecutiveTinyChunks >= 12 && chunksSinceText >= 12 && Date.now() - lastTranscriptTextAt > 12e4) {
-          reportUnexpectedStop("audio-chunks-too-small");
+      try {
+        lastDataAvailableAt = Date.now();
+        if (!e.data || e.data.size < 1e3) {
+          consecutiveTinyChunks++;
+          chunksSinceText++;
+          if (consecutiveTinyChunks >= 12 && chunksSinceText >= 12 && Date.now() - lastTranscriptTextAt > 12e4) {
+            reportUnexpectedStop("audio-chunks-too-small");
+          }
+          return;
         }
-        return;
-      }
-      consecutiveTinyChunks = 0;
-      const blob = e.data;
-      const chunkEndedAt = Date.now();
-      const chunkStart = chunkStartedAt;
-      chunkStartedAt = Date.now();
-      const form = new FormData();
-      form.append("audio", blob, "chunk.webm");
-      form.append("stream", streamType);
-      form.append("meeting_session_id", meetingSessionId);
-      const response = await fetch(`${apiBase}/audio/transcribe`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${sessionToken}` },
-        body: form
-      }).catch(() => null);
-      if (!response?.ok) {
-        consecutiveUploadFailures++;
-        if (consecutiveUploadFailures >= 3) {
-          reportUnexpectedStop("transcription-upload-failed");
+        consecutiveTinyChunks = 0;
+        const blob = e.data;
+        const chunkEndedAt = Date.now();
+        const chunkStart = chunkStartedAt;
+        chunkStartedAt = Date.now();
+        const form = new FormData();
+        form.append("audio", blob, "chunk.webm");
+        form.append("stream", streamType);
+        form.append("meeting_session_id", meetingSessionId);
+        const response = await fetch(`${apiBase}/audio/transcribe`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${sessionToken}` },
+          body: form
+        }).catch(() => null);
+        if (!response?.ok) {
+          consecutiveUploadFailures++;
+          if (consecutiveUploadFailures >= 3) {
+            reportUnexpectedStop("transcription-upload-failed");
+          }
+          return;
         }
-        return;
-      }
-      consecutiveUploadFailures = 0;
-      const result = await response.json().catch(() => null);
-      if (!result?.text) {
-        consecutiveEmptyTranscripts++;
-        chunksSinceText++;
-        if (consecutiveEmptyTranscripts >= 6 && chunksSinceText >= 6 && Date.now() - lastTranscriptTextAt > 6e4) {
-          reportUnexpectedStop("transcription-stalled");
+        consecutiveUploadFailures = 0;
+        const result = await response.json().catch(() => null);
+        if (!result?.text) {
+          consecutiveEmptyTranscripts++;
+          chunksSinceText++;
+          if (consecutiveEmptyTranscripts >= 6 && chunksSinceText >= 6 && Date.now() - lastTranscriptTextAt > 6e4) {
+            reportUnexpectedStop("transcription-stalled");
+          }
+          return;
         }
-        return;
+        consecutiveEmptyTranscripts = 0;
+        consecutiveTinyChunks = 0;
+        chunksSinceText = 0;
+        lastTranscriptTextAt = Date.now();
+        chrome.runtime.sendMessage({
+          type: "AUDIO_TRANSCRIPT_RESULT",
+          text: result.text,
+          stream: streamType,
+          startOffsetMs: chunkStart,
+          endOffsetMs: chunkEndedAt,
+          eventTimeMs: chunkEndedAt
+        }).catch(() => {
+        });
+      } finally {
+        settleFlushes(recorder);
       }
-      consecutiveEmptyTranscripts = 0;
-      consecutiveTinyChunks = 0;
-      chunksSinceText = 0;
-      lastTranscriptTextAt = Date.now();
-      chrome.runtime.sendMessage({
-        type: "AUDIO_TRANSCRIPT_RESULT",
-        text: result.text,
-        stream: streamType,
-        startOffsetMs: chunkStart,
-        endOffsetMs: chunkEndedAt,
-        eventTimeMs: chunkEndedAt
-      }).catch(() => {
-      });
     };
     recorder.start();
     interval = setInterval(() => {

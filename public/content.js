@@ -112,25 +112,28 @@
       if (params.candidateSpeaker === "other") {
         return {
           source: params.source,
+          capture_mode: params.captureMode,
           candidate_speaker: "other",
           final_speaker: "other",
           passes_user_attribution: false,
           reason: "non_user_context"
         };
       }
-      if (params.source === "mic") {
+      const overlapMatch = this.findBestNonUserOverlap(params.text, params.timestampMs);
+      if (params.source === "mic" && params.captureMode === "user_voice_only") {
         return {
           source: params.source,
+          capture_mode: params.captureMode,
           candidate_speaker: "user",
           final_speaker: "user",
           passes_user_attribution: true,
           reason: "trusted_mic_capture"
         };
       }
-      const overlapMatch = this.findBestNonUserOverlap(params.text, params.timestampMs);
       if (overlapMatch && overlapMatch.score >= STRONG_OVERLAP_SCORE) {
         return {
           source: params.source,
+          capture_mode: params.captureMode,
           candidate_speaker: "user",
           final_speaker: "other",
           passes_user_attribution: false,
@@ -141,6 +144,7 @@
       }
       return {
         source: params.source,
+        capture_mode: params.captureMode,
         candidate_speaker: "user",
         final_speaker: "user",
         passes_user_attribution: true,
@@ -538,12 +542,30 @@
   var pageMicInterval = null;
   var pageMicSessionId = null;
   var pageMicChunkStartedAt = 0;
-  function stopPageMicrophoneCapture() {
+  var expectedPageMicStop = false;
+  var lastPageMicDataAvailableAt = 0;
+  var lastPageMicTranscriptTextAt = 0;
+  var pageMicChunksSinceText = 0;
+  var pageMicConsecutiveUploadFailures = 0;
+  var pageMicConsecutiveEmptyTranscripts = 0;
+  var pageMicConsecutiveTinyChunks = 0;
+  var pageMicFlushResolvers = [];
+  function resetPageMicHealth() {
+    const now = Date.now();
+    lastPageMicDataAvailableAt = now;
+    lastPageMicTranscriptTextAt = now;
+    pageMicChunksSinceText = 0;
+    pageMicConsecutiveUploadFailures = 0;
+    pageMicConsecutiveEmptyTranscripts = 0;
+    pageMicConsecutiveTinyChunks = 0;
+  }
+  function stopPageMicrophoneCapture(options = {}) {
     if (pageMicInterval) {
       clearInterval(pageMicInterval);
       pageMicInterval = null;
     }
     if (pageMicRecorder) {
+      expectedPageMicStop = options.expected ?? true;
       try {
         if (pageMicRecorder.state === "recording") pageMicRecorder.stop();
       } catch (_) {
@@ -558,6 +580,47 @@
     pageMicRecorder = null;
     pageMicSessionId = null;
     pageMicChunkStartedAt = 0;
+  }
+  function settlePageMicFlushes() {
+    const resolvers = pageMicFlushResolvers.splice(0);
+    resolvers.forEach((resolve) => resolve());
+  }
+  function flushPageMicrophoneCapture(timeoutMs = 6e3) {
+    const recorder = pageMicRecorder;
+    if (!recorder || recorder.state !== "recording") return Promise.resolve();
+    return new Promise((resolve) => {
+      let timer;
+      const done = () => {
+        clearTimeout(timer);
+        const index = pageMicFlushResolvers.indexOf(done);
+        if (index >= 0) pageMicFlushResolvers.splice(index, 1);
+        resolve();
+      };
+      timer = setTimeout(done, timeoutMs);
+      pageMicFlushResolvers.push(done);
+      try {
+        recorder.requestData();
+      } catch (_) {
+        done();
+      }
+    });
+  }
+  function restartPageMicrophoneCapture(reason, meetingSessionId) {
+    if (state.status !== "active" || state.captureMode !== "user_voice_only" || state.meetingSessionId !== meetingSessionId) {
+      return;
+    }
+    sendCaptureDiagnostic("page_mic_capture_restarting", { reason });
+    stopPageMicrophoneCapture({ expected: true });
+    setTimeout(() => {
+      if (state.status === "active" && state.captureMode === "user_voice_only" && state.meetingSessionId === meetingSessionId) {
+        startPageMicrophoneCapture().catch((err) => {
+          sendCaptureDiagnostic("page_mic_restart_failed", {
+            reason,
+            message: err?.message || String(err)
+          });
+        });
+      }
+    }, 1e3);
   }
   async function startPageMicrophoneCapture() {
     if (!state.meetingSessionId) return;
@@ -578,47 +641,100 @@
       pageMicRecorder = recorder;
       pageMicSessionId = meetingSessionId;
       pageMicChunkStartedAt = Date.now();
+      expectedPageMicStop = false;
+      resetPageMicHealth();
       recorder.onstart = () => sendCaptureDiagnostic("page_mic_capture_started");
-      recorder.onerror = () => sendCaptureDiagnostic("page_mic_capture_error");
+      recorder.onerror = () => restartPageMicrophoneCapture("recorder-error", meetingSessionId);
       recorder.onstop = () => {
-        if (pageMicSessionId === meetingSessionId) {
-          sendCaptureDiagnostic("page_mic_capture_stopped");
+        if (!expectedPageMicStop && pageMicSessionId === meetingSessionId) {
+          restartPageMicrophoneCapture("recorder-stopped", meetingSessionId);
         }
       };
       stream.getAudioTracks().forEach((track) => {
-        track.addEventListener("ended", () => sendCaptureDiagnostic("page_mic_track_ended"));
-        track.addEventListener("mute", () => sendCaptureDiagnostic("page_mic_track_muted"));
+        track.addEventListener("ended", () => restartPageMicrophoneCapture("track-ended", meetingSessionId));
+        track.addEventListener("mute", () => {
+          setTimeout(() => {
+            if (track.muted && pageMicRecorder?.state === "recording" && pageMicSessionId === meetingSessionId) {
+              restartPageMicrophoneCapture("track-muted", meetingSessionId);
+            }
+          }, 3e4);
+        });
       });
       recorder.ondataavailable = async (event) => {
-        if (!event.data || event.data.size < 1e3 || !state.meetingSessionId) return;
-        const chunkEndedAt = Date.now();
-        const chunkStartedAt = pageMicChunkStartedAt || chunkEndedAt;
-        pageMicChunkStartedAt = Date.now();
         try {
-          await chrome.runtime.sendMessage({
-            type: "PAGE_MIC_AUDIO_CHUNK",
-            meetingSessionId,
-            dataUrl: await blobToDataUrl(event.data),
-            mimeType: event.data.type || "audio/webm",
-            startOffsetMs: chunkStartedAt,
-            endOffsetMs: chunkEndedAt,
-            eventTimeMs: chunkEndedAt
-          });
-        } catch (err) {
-          sendCaptureDiagnostic("page_mic_chunk_send_failed", { message: err?.message || String(err) });
+          lastPageMicDataAvailableAt = Date.now();
+          if (!state.meetingSessionId) return;
+          if (!event.data || event.data.size < 1e3) {
+            pageMicConsecutiveTinyChunks++;
+            pageMicChunksSinceText++;
+            if (pageMicConsecutiveTinyChunks >= 12 && pageMicChunksSinceText >= 12 && Date.now() - lastPageMicTranscriptTextAt > 12e4) {
+              restartPageMicrophoneCapture("audio-chunks-too-small", meetingSessionId);
+            }
+            return;
+          }
+          pageMicConsecutiveTinyChunks = 0;
+          const chunkEndedAt = Date.now();
+          const chunkStartedAt = pageMicChunkStartedAt || chunkEndedAt;
+          pageMicChunkStartedAt = Date.now();
+          try {
+            const response = await chrome.runtime.sendMessage({
+              type: "PAGE_MIC_AUDIO_CHUNK",
+              meetingSessionId,
+              dataUrl: await blobToDataUrl(event.data),
+              mimeType: event.data.type || "audio/webm",
+              startOffsetMs: chunkStartedAt,
+              endOffsetMs: chunkEndedAt,
+              eventTimeMs: chunkEndedAt
+            });
+            if (response?.text) {
+              pageMicConsecutiveUploadFailures = 0;
+              pageMicConsecutiveEmptyTranscripts = 0;
+              pageMicConsecutiveTinyChunks = 0;
+              pageMicChunksSinceText = 0;
+              lastPageMicTranscriptTextAt = Date.now();
+            } else if (response?.error) {
+              pageMicConsecutiveUploadFailures++;
+              if (pageMicConsecutiveUploadFailures >= 3) {
+                restartPageMicrophoneCapture("transcription-upload-failed", meetingSessionId);
+              }
+            } else {
+              pageMicConsecutiveUploadFailures = 0;
+              pageMicConsecutiveEmptyTranscripts++;
+              pageMicChunksSinceText++;
+              if (pageMicConsecutiveEmptyTranscripts >= 6 && pageMicChunksSinceText >= 6 && Date.now() - lastPageMicTranscriptTextAt > 6e4) {
+                restartPageMicrophoneCapture("transcription-stalled", meetingSessionId);
+              }
+            }
+          } catch (err) {
+            pageMicConsecutiveUploadFailures++;
+            sendCaptureDiagnostic("page_mic_chunk_send_failed", { message: err?.message || String(err) });
+            if (pageMicConsecutiveUploadFailures >= 3) {
+              restartPageMicrophoneCapture("chunk-send-failed", meetingSessionId);
+            }
+          }
+        } finally {
+          settlePageMicFlushes();
         }
       };
       recorder.start();
       pageMicInterval = setInterval(() => {
         if (!pageMicRecorder || pageMicRecorder.state !== "recording") {
-          sendCaptureDiagnostic("page_mic_not_recording");
-          stopPageMicrophoneCapture();
+          restartPageMicrophoneCapture("not-recording", meetingSessionId);
+          return;
+        }
+        if (!pageMicRecorder.stream.active || !pageMicRecorder.stream.getAudioTracks().some((track) => track.readyState === "live")) {
+          restartPageMicrophoneCapture("health-check-failed", meetingSessionId);
+          return;
+        }
+        if (Date.now() - lastPageMicDataAvailableAt > 12e4) {
+          restartPageMicrophoneCapture("no-audio-chunks", meetingSessionId);
           return;
         }
         try {
           pageMicRecorder.requestData();
         } catch (err) {
           sendCaptureDiagnostic("page_mic_request_data_failed", { message: err?.message || String(err) });
+          restartPageMicrophoneCapture("request-data-failed", meetingSessionId);
         }
       }, 1e4);
     } catch (err) {
@@ -823,6 +939,7 @@
       text,
       source,
       candidateSpeaker,
+      captureMode: state.captureMode,
       timestampMs: eventTimeMs,
       startOffsetMs,
       endOffsetMs
@@ -1166,7 +1283,7 @@
           break;
         }
         markWhisperActive();
-        const candidateSpeaker = stream === "mic" ? "user" : state.platform === "google_meet" && state.userSpeaking ? "user" : "other";
+        const candidateSpeaker = stream === "tab" ? "other" : state.captureMode === "full_meeting" && !state.userSpeaking ? "other" : "user";
         emitTranscriptSegment(
           message.text || "",
           candidateSpeaker,
@@ -1180,6 +1297,9 @@
         );
         break;
       }
+      case "FLUSH_SIGNAL_CAPTURE":
+        flushPageMicrophoneCapture(6e3).then(() => sendResponse({ ok: true })).catch((err) => sendResponse({ ok: false, error: err?.message || String(err) }));
+        return true;
       case "DISMISS_ALL_PROMPTS":
         dismissCurrentPrompt();
         break;

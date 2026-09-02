@@ -1109,7 +1109,7 @@
             var dispatcher = resolveDispatcher();
             return dispatcher.useLayoutEffect(create, deps);
           }
-          function useCallback(callback, deps) {
+          function useCallback2(callback, deps) {
             var dispatcher = resolveDispatcher();
             return dispatcher.useCallback(callback, deps);
           }
@@ -1876,7 +1876,7 @@
           exports.memo = memo;
           exports.startTransition = startTransition;
           exports.unstable_act = act;
-          exports.useCallback = useCallback;
+          exports.useCallback = useCallback2;
           exports.useContext = useContext;
           exports.useDebugValue = useDebugValue;
           exports.useDeferredValue = useDeferredValue;
@@ -23686,9 +23686,9 @@
         ESTIMATED_USEFULNESS: 0.15
       };
       exports.DEFAULT_RETENTION_DAYS = {
-        RAW_TRANSCRIPT: 7,
-        DERIVED_FEATURES: 30,
-        PROMPTS: 90,
+        RAW_TRANSCRIPT: 365,
+        DERIVED_FEATURES: 365,
+        PROMPTS: 365,
         REPORTS: 365
       };
       exports.LATENCY_TARGETS = {
@@ -23727,7 +23727,7 @@
           lens: "collaboration",
           label: "Acknowledge before advocating",
           description: "Reflect another point before adding a recommendation, disagreement, or competing frame.",
-          supported_capture_modes: ["user_voice_only", "full_meeting"],
+          supported_capture_modes: ["full_meeting"],
           evidence_quality_minimum: "user_transcript_or_timing",
           permitted_inferences: ["The contribution may be easier to receive when the other point is named first."],
           prohibited_inferences: ["people-pleasing", "dominance", "empathy score", "personality label", "intent"],
@@ -23822,9 +23822,9 @@
           permitted_inferences: ["A recap may make alignment easier to inspect."],
           prohibited_inferences: ["team psychological safety", "facilitation score", "leadership potential"],
           disconfirming_features: ["summary_or_recap_count"],
-          safe_prompt_template: "Recap the shared point in one sentence.",
+          safe_prompt_template: "Recap your point in one sentence.",
           practice_cue: "When the discussion shifts topics",
-          practice_behavior: "recap the shared point in one sentence",
+          practice_behavior: "recap your point in one sentence",
           measure_metric: "One concise recap before topic shift"
         },
         invite_other_perspective: {
@@ -23832,7 +23832,7 @@
           lens: "collaboration",
           label: "Invite another perspective",
           description: "Create a small opening for another view without requiring disclosure or agreement.",
-          supported_capture_modes: ["user_voice_only", "full_meeting"],
+          supported_capture_modes: ["full_meeting"],
           evidence_quality_minimum: "user_transcript_or_timing",
           permitted_inferences: ["A small invitation may make it easier for others to contribute."],
           prohibited_inferences: ["dominance", "manipulation", "team engagement", "peer reaction"],
@@ -25104,52 +25104,52 @@
     const [error, setError] = (0, import_react.useState)(null);
     const [deletingId, setDeletingId] = (0, import_react.useState)(null);
     const [captureMode, setCaptureMode] = (0, import_react.useState)(import_shared.DEFAULT_CAPTURE_MODE);
-    const [allowFullMeetingCapture, setAllowFullMeetingCapture] = (0, import_react.useState)(false);
+    const [allowFullMeetingCapture, setAllowFullMeetingCapture] = (0, import_react.useState)(true);
     const [goals, setGoals] = (0, import_react.useState)([]);
     const [activeGoal, setActiveGoal] = (0, import_react.useState)(null);
     const [goalText, setGoalText] = (0, import_react.useState)("");
     const [structuredMeeting, setStructuredMeeting] = (0, import_react.useState)(null);
     const [correctionDrafts, setCorrectionDrafts] = (0, import_react.useState)({});
+    const refreshStatus = (0, import_react.useCallback)(() => {
+      chrome.runtime.sendMessage({ type: "GET_STATUS" }, (response) => {
+        if (!response) return;
+        const isAuthenticated = response.authenticated || false;
+        setState((prev) => reconcilePopupState(prev, {
+          status: response.status || "off",
+          meetingDetected: response.meetingDetected ?? false,
+          meetingSessionId: response.meetingSessionId || null,
+          authenticated: isAuthenticated,
+          userId: response.userId || prev.userId,
+          platform: response.platform || null,
+          statusReason: response.statusReason || null
+        }));
+        void queryMeetingTabContext().then((tabState) => {
+          if (!tabState) return;
+          setState((prev) => reconcilePopupState(prev, tabState));
+        });
+        if (!isAuthenticated) {
+          chrome.identity.getAuthToken({ interactive: false }, (token) => {
+            if (!chrome.runtime.lastError && token) {
+              chrome.runtime.sendMessage({ type: "AUTHENTICATE", googleIdToken: token }, (res) => {
+                if (res?.ok) {
+                  setState((prev) => reconcilePopupState(prev, {
+                    authenticated: true,
+                    userId: res.userId || prev.userId,
+                    status: res.status || prev.status,
+                    meetingDetected: res.meetingDetected ?? prev.meetingDetected,
+                    meetingSessionId: res.meetingSessionId || prev.meetingSessionId,
+                    platform: res.platform || prev.platform,
+                    statusReason: res.statusReason || null
+                  }));
+                }
+              });
+            }
+          });
+        }
+      });
+    }, []);
     (0, import_react.useEffect)(() => {
       let statusPoll = null;
-      const refreshStatus2 = () => {
-        chrome.runtime.sendMessage({ type: "GET_STATUS" }, (response) => {
-          if (!response) return;
-          const isAuthenticated = response.authenticated || false;
-          setState((prev) => reconcilePopupState(prev, {
-            status: response.status || "off",
-            meetingDetected: response.meetingDetected ?? false,
-            meetingSessionId: response.meetingSessionId || null,
-            authenticated: isAuthenticated,
-            userId: response.userId || prev.userId,
-            platform: response.platform || null,
-            statusReason: response.statusReason || null
-          }));
-          void queryMeetingTabContext().then((tabState) => {
-            if (!tabState) return;
-            setState((prev) => reconcilePopupState(prev, tabState));
-          });
-          if (!isAuthenticated) {
-            chrome.identity.getAuthToken({ interactive: false }, (token) => {
-              if (!chrome.runtime.lastError && token) {
-                chrome.runtime.sendMessage({ type: "AUTHENTICATE", googleIdToken: token }, (res) => {
-                  if (res?.ok) {
-                    setState((prev) => reconcilePopupState(prev, {
-                      authenticated: true,
-                      userId: res.userId || prev.userId,
-                      status: res.status || prev.status,
-                      meetingDetected: res.meetingDetected ?? prev.meetingDetected,
-                      meetingSessionId: res.meetingSessionId || prev.meetingSessionId,
-                      platform: res.platform || prev.platform,
-                      statusReason: res.statusReason || null
-                    }));
-                  }
-                });
-              }
-            });
-          }
-        });
-      };
       chrome.storage.local.get(["sessionToken", "userId"], (items) => {
         if (items.sessionToken) {
           setSessionToken(items.sessionToken);
@@ -25162,7 +25162,7 @@
       });
       chrome.storage.sync.get({ captureMode: import_shared.DEFAULT_CAPTURE_MODE }, (items) => {
         if (items.captureMode === "user_voice_only" || items.captureMode === "full_meeting") {
-          setCaptureMode(items.captureMode === "full_meeting" ? import_shared.DEFAULT_CAPTURE_MODE : items.captureMode);
+          setCaptureMode(items.captureMode);
         } else {
           setCaptureMode(import_shared.DEFAULT_CAPTURE_MODE);
         }
@@ -25175,12 +25175,10 @@
           chrome.storage.sync.set({ captureMode: import_shared.DEFAULT_CAPTURE_MODE });
         }
       }).catch(() => {
-        setAllowFullMeetingCapture(false);
-        setCaptureMode(import_shared.DEFAULT_CAPTURE_MODE);
-        chrome.storage.sync.set({ captureMode: import_shared.DEFAULT_CAPTURE_MODE });
+        setAllowFullMeetingCapture(true);
       });
-      refreshStatus2();
-      statusPoll = setInterval(refreshStatus2, 2e3);
+      refreshStatus();
+      statusPoll = setInterval(refreshStatus, 2e3);
       const listener = (message) => {
         if (message.type === "STATUS_UPDATE") {
           setState((prev) => reconcilePopupState(prev, {
@@ -25197,7 +25195,7 @@
         chrome.runtime.onMessage.removeListener(listener);
         if (statusPoll) clearInterval(statusPoll);
       };
-    }, []);
+    }, [refreshStatus]);
     (0, import_react.useEffect)(() => {
       if (!state.authenticated) return;
       getEvolvioGoals().then((data) => {
@@ -25556,6 +25554,7 @@
     if (view === "report" && report) {
       return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "popup-container", children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "popup-header", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", { className: "popup-logo", src: "brand/evolvio-logo.png", alt: "Evolvio" }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "btn btn-secondary btn-sm", onClick: () => setView("history"), children: "\u2190 Back" }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", { children: "Report" }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "btn btn-primary btn-sm", onClick: handleDownloadReport, style: { marginLeft: "auto" }, children: "\u2B07 Download" })
@@ -25720,6 +25719,7 @@
     if (view === "transcript" && transcript) {
       return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "popup-container", children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "popup-header", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", { className: "popup-logo", src: "brand/evolvio-logo.png", alt: "Evolvio" }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "btn btn-secondary btn-sm", onClick: () => setView("history"), children: "\u2190 Back" }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", { children: "Transcript" })
         ] }),
@@ -25739,6 +25739,7 @@
     if (view === "history") {
       return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "popup-container", children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "popup-header", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", { className: "popup-logo", src: "brand/evolvio-logo.png", alt: "Evolvio" }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "btn btn-secondary btn-sm", onClick: () => setView("main"), children: "\u2190 Back" }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", { children: "Past Meetings" })
         ] }),
@@ -25807,6 +25808,7 @@
     }
     return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "popup-container", children: [
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "popup-header", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", { className: "popup-logo popup-logo-main", src: "brand/evolvio-logo.png", alt: "Evolvio" }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", { children: "Evolvio" }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
           "button",
@@ -25867,21 +25869,40 @@
           ] })
         ] }),
         allowFullMeetingCapture && state.status !== "active" && state.status !== "muted" && !state.meetingSessionId && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "capture-mode", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "capture-mode-title", children: "Audio source" }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { className: "capture-mode-option", children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
               "input",
               {
-                type: "checkbox",
+                type: "radio",
+                name: "captureMode",
+                value: "user_voice_only",
                 checked: captureMode === "user_voice_only",
-                onChange: (e) => handleCaptureModeChange(e.target.checked ? "user_voice_only" : "full_meeting")
+                onChange: () => handleCaptureModeChange("user_voice_only")
               }
             ),
             /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Use only my voice" }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Default: microphone only. Full-meeting audio requires opt-in." })
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Only my audio" }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Use microphone audio only." })
             ] })
           ] }),
-          captureMode === "full_meeting" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { style: { margin: "6px 0 0 22px", fontSize: "11px", color: "#8a5a00", lineHeight: 1.4 }, children: "Full-meeting mode may capture tab audio from other participants for context." })
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { className: "capture-mode-option", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+              "input",
+              {
+                type: "radio",
+                name: "captureMode",
+                value: "full_meeting",
+                checked: captureMode === "full_meeting",
+                onChange: () => handleCaptureModeChange("full_meeting")
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Everyone's audio too" }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Use microphone and meeting-tab audio for broader context." })
+            ] })
+          ] }),
+          captureMode === "full_meeting" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "capture-mode-note", children: "Full-meeting mode may capture tab audio from other participants for context." })
         ] }),
         !state.authenticated ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "btn btn-primary", onClick: handleSignIn, children: "Sign In" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
           state.status === "ready" && state.meetingSessionId && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
