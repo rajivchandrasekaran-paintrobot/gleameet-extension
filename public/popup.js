@@ -25508,9 +25508,9 @@
             const speaker = entry.speaker === "user" ? "You" : "Other";
             lines.push(`[${ts}] ${speaker}: ${entry.text}`);
           } else if (entry.type === "nudge") {
-            lines.push(`[COACH NUDGE] ${entry.text}`);
+            lines.push(`[${ts}] COACH NUDGE: ${entry.text}`);
           } else {
-            lines.push(`[COACH REINFORCEMENT] ${entry.text}`);
+            lines.push(`[${ts}] COACH REINFORCEMENT: ${entry.text}`);
           }
         }
       }
