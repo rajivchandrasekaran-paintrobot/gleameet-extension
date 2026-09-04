@@ -2,11 +2,10 @@
 
 Chrome extension for private real-time behavioral coaching during Zoom web, Google Meet, and Microsoft Teams web meetings.
 
-Latest public build: **v1.0.105**
+Latest public build: **v1.0.112**
 
 - Latest download: [evolvio-extension.zip](https://github.com/rajivchandrasekaran-paintrobot/gleameet-extension/raw/main/evolvio-extension.zip)
-- Legacy stable download: [gleameet-extension.zip](https://github.com/rajivchandrasekaran-paintrobot/gleameet-extension/raw/main/gleameet-extension.zip)
-- Versioned download: [evolvio-extension-1.0.105.zip](https://github.com/rajivchandrasekaran-paintrobot/gleameet-extension/raw/main/evolvio-extension-1.0.105.zip)
+- Versioned download: [evolvio-extension-1.0.112.zip](https://github.com/rajivchandrasekaran-paintrobot/gleameet-extension/raw/main/evolvio-extension-1.0.112.zip)
 
 ## Installation
 
@@ -55,6 +54,12 @@ Desktop Zoom and desktop Teams are not the primary target for this extension bui
 
 ## Recent Changes
 
+### v1.0.112
+
+- Rebuilds saved report transcripts from raw events so stale speaker labels and coach-only tails are corrected when reports are opened.
+- Tightens user/other attribution handling for failed user attribution.
+- Keeps the current public download under the Evolvio filename.
+
 ### v1.0.105
 
 - Restores the launch-time audio-source choice.
@@ -65,7 +70,6 @@ Desktop Zoom and desktop Teams are not the primary target for this extension bui
 
 - Renames the extension package and public-facing release artifacts to Evolvio.
 - Keeps the existing Chrome extension key so already-installed extension identity remains stable.
-- Keeps `gleameet-extension.zip` as a compatibility alias for older download links.
 - Renames report sections to friendlier coaching language: **Worth Trying Next**, **Next Moves**, and **Transcript + Coach**.
 
 ### v1.0.85
@@ -88,13 +92,13 @@ Desktop Zoom and desktop Teams are not the primary target for this extension bui
 ### v1.0.81
 
 - Added a transcription-stall watchdog for long calls.
-- If audio chunks are still being produced but uploads fail repeatedly or Whisper stops returning transcript text for more than a minute, GleaMeet now forces a real capture restart.
+- If audio chunks are still being produced but uploads fail repeatedly or Whisper stops returning transcript text for more than a minute, Evolvio now forces a real capture restart.
 - This targets cases where prompts still appear but the meeting transcript stops advancing.
 
 ### v1.0.80
 
 - Added a long-session audio capture watchdog.
-- If mic or tab capture stops, errors, or loses its live audio track during active coaching, GleaMeet now asks the background worker to restart capture for the same meeting.
+- If mic or tab capture stops, errors, or loses its live audio track during active coaching, Evolvio now asks the background worker to restart capture for the same meeting.
 - This targets cases where prompts work early in a long call and then stop because transcription quietly stopped.
 
 ### v1.0.79
@@ -107,7 +111,7 @@ Desktop Zoom and desktop Teams are not the primary target for this extension bui
 ### v1.0.78
 
 - Persisted the last ready meeting context separately from the active coaching session.
-- Helps GleaMeet stay ready after ending coaching or ending the GleaMeet report session while the actual Zoom, Meet, or Teams call remains open.
+- Helps Evolvio stay ready after ending coaching or ending the Evolvio report session while the actual Zoom, Meet, or Teams call remains open.
 - Restores ready meeting state after the popup closes/reopens or the Manifest V3 background worker restarts.
 
 ### v1.0.74-v1.0.77
@@ -115,7 +119,7 @@ Desktop Zoom and desktop Teams are not the primary target for this extension bui
 - Improved stop/resume coaching behavior so capture restarts cleanly after pausing.
 - Hardened prompt delivery so generated prompts are not lost before the frontend acknowledges them.
 - Prevented stale popup/background status from shutting down active transcription or prompt capture.
-- Kept the meeting available for restart after ending the GleaMeet coaching session while the browser meeting is still active.
+- Kept the meeting available for restart after ending the Evolvio coaching session while the browser meeting is still active.
 
 ### Earlier July 2026 fixes
 
@@ -130,9 +134,9 @@ Desktop Zoom and desktop Teams are not the primary target for this extension bui
 If the popup says **Not in a meeting** while a supported browser meeting is clearly open:
 
 1. Make sure the meeting is open in Chrome, not only the desktop app.
-2. Click **Reload Extension** in the GleaMeet popup.
+2. Click **Reload Extension** in the Evolvio popup.
 3. Reopen the popup from Chrome's puzzle-piece extensions menu.
-4. If needed, go to `chrome://extensions`, click reload on GleaMeet, then reopen the meeting tab.
+4. If needed, go to `chrome://extensions`, click reload on Evolvio, then reopen the meeting tab.
 
 If prompts stop showing:
 
