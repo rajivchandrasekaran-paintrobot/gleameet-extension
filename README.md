@@ -2,14 +2,14 @@
 
 Chrome extension for private real-time behavioral coaching during Zoom web, Google Meet, and Microsoft Teams web meetings.
 
-Latest public build: **v1.0.114**
+Latest public build: **v1.0.115**
 
-- Latest download: [evolvio-extension-1.0.114.zip](https://github.com/rajivchandrasekaran-paintrobot/gleameet-extension/raw/main/evolvio-extension-1.0.114.zip)
-- Versioned download: [evolvio-extension-1.0.114.zip](https://github.com/rajivchandrasekaran-paintrobot/gleameet-extension/raw/main/evolvio-extension-1.0.114.zip)
+- Latest download: [evolvio-extension-1.0.115.zip](https://github.com/rajivchandrasekaran-paintrobot/gleameet-extension/raw/main/evolvio-extension-1.0.115.zip)
+- Versioned download: [evolvio-extension-1.0.115.zip](https://github.com/rajivchandrasekaran-paintrobot/gleameet-extension/raw/main/evolvio-extension-1.0.115.zip)
 
 ## Installation
 
-1. Download [evolvio-extension-1.0.114.zip](https://github.com/rajivchandrasekaran-paintrobot/gleameet-extension/raw/main/evolvio-extension-1.0.114.zip)
+1. Download [evolvio-extension-1.0.115.zip](https://github.com/rajivchandrasekaran-paintrobot/gleameet-extension/raw/main/evolvio-extension-1.0.115.zip)
 2. Unzip the file
 3. Open Chrome and go to `chrome://extensions`
 4. Enable **Developer mode** using the top-right toggle
@@ -53,6 +53,12 @@ The capture mode is selected in the popup before starting coaching.
 Desktop Zoom and desktop Teams are not the primary target for this extension build. Use the browser/web meeting versions.
 
 ## Recent Changes
+
+### v1.0.115
+
+- Fully stops offscreen audio capture when **Stop Coaching** pauses coaching mid-call.
+- Cancels any in-flight mic/tab capture startup if coaching is stopped before Chrome finishes opening the stream.
+- Keeps the zip packaged with `public/` as the top-level directory.
 
 ### v1.0.113
 
